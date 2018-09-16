@@ -1,14 +1,12 @@
-from . import SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_SIZE
+from . import SCREEN_WIDTH, SCREEN_HEIGHT, clip
 import pygame
 import numpy
 
 
 class Screen(pygame.Surface):
     def __init__(self):
-        super().__init__(SCREEN_SIZE)
+        super().__init__((SCREEN_WIDTH, SCREEN_HEIGHT))
         self.__scale = 1
-        self.__min_scale = 1
-        self.__max_scale = 100
         self.__size_x = 0
         self.__size_y = 0
         self.__offset_x = 0
@@ -16,45 +14,57 @@ class Screen(pygame.Surface):
         self.__epsilon_x = 0
         self.__epsilon_y = 0
 
-    def set_data(self, data):
+    def set_data(self, data, frame_color=(255, 0, 0)):
+        self.fill((0, 0, 0))
         self.__size_x, self.__size_y = data.shape
-        assert self.__size_x >= 8 and self.__size_y >= 8, 'the array.shape is invalid'
+        scale, ssx, ssy = self.__scale, SCREEN_WIDTH, SCREEN_HEIGHT  # ss:screen_size
+        lx, ly = self.__size_x * scale, self.__size_y * scale  # l:length
+        tx, ty = self.__offset_x, self.__offset_y  # t:offset
+        ix, iy = max(0, tx), max(0, ty)  # i:initialize
+        nx, ny = ix // scale, iy // scale  # n:number
+        dx, dy = ix % scale, iy % scale  # d:delta
+        px, py = lx - ssx, ly - ssy  # p:position
+        len_x = {True: ssx, tx < 0: tx + ssx, tx > px: lx - ix}[True]
+        len_y = {True: ssy, ty < 0: ty + ssy, ty > py: ly - iy}[True]
+        cx, cy = (len_x + dx - 1) // scale + 1, (len_y + dy - 1) // scale + 1  # c:count
+        if cx > 0 and cy > 0:
+            valid_data = data[nx:nx + cx, ny:ny + cy]
+            scale_data = numpy.kron(valid_data, numpy.ones((scale, scale), dtype=int))
+            render_data = scale_data[dx:dx + len_x, dy:dy + len_y]
+            screen = pygame.Surface((len_x, len_y))
+            pygame.pixelcopy.array_to_surface(screen, render_data)
+            self.blit(screen, (max(0, -tx), max(0, -ty)))
 
-        if self.__size_x * self.__scale < SCREEN_WIDTH or self.__size_y * self.__scale < SCREEN_HEIGHT:
-            self.__min_scale = max((SCREEN_WIDTH - 1) // self.__size_x, (SCREEN_HEIGHT - 1) // self.__size_y) + 1
-            self.__scale = self.__min_scale
-        assert self.__scale <= 100, 'scale is too large'
-
-        index_x, index_y = self.__offset_x // self.__scale, self.__offset_y // self.__scale
-        delta_x, delta_y = self.__offset_x % self.__scale, self.__offset_y % self.__scale
-        count_x = (SCREEN_WIDTH + delta_x - 1) // self.__scale + 1
-        count_y = (SCREEN_HEIGHT + delta_y - 1) // self.__scale + 1
-
-        valid_data = data[index_x:index_x + count_x, index_y:index_y + count_y]
-        scale_data = numpy.kron(valid_data, numpy.ones((self.__scale, self.__scale), dtype=int))
-        render_data = scale_data[delta_x:delta_x + SCREEN_WIDTH, delta_y:delta_y + SCREEN_HEIGHT]
-
-        pygame.pixelcopy.array_to_surface(self, render_data)
+        pos_l, pos_r = -tx - 1, lx - tx + 1  # l:left, r:right
+        pos_u, pos_d = -ty - 1, ly - ty + 1  # u:up, d:down
+        if tx < 0:
+            pygame.draw.line(self, frame_color, (pos_l, pos_u), (pos_l, pos_d))
+        if tx > px:
+            pygame.draw.line(self, frame_color, (pos_r, pos_u), (pos_r, pos_d))
+        if ty < 0:
+            pygame.draw.line(self, frame_color, (pos_l, pos_u), (pos_r, pos_u))
+        if ty > py:
+            pygame.draw.line(self, frame_color, (pos_l, pos_d), (pos_r, pos_d))
 
     def update_offset(self, prev_position, cur_position):
         prev_pos_x, prev_pos_y = prev_position
         cur_pos_x, cur_pos_y = cur_position
         self.__offset_x += prev_pos_x - cur_pos_x
         self.__offset_y += prev_pos_y - cur_pos_y
-        self.__offset_x = min(max(0, self.__offset_x), self.__size_x * self.__scale - SCREEN_WIDTH)
-        self.__offset_y = min(max(0, self.__offset_y), self.__size_y * self.__scale - SCREEN_HEIGHT)
+        self.__offset_x = clip(self.__offset_x, -SCREEN_WIDTH, self.__size_x * self.__scale)
+        self.__offset_y = clip(self.__offset_y, -SCREEN_HEIGHT, self.__size_y * self.__scale)
 
     def update_scale(self, mouse_position, delta_scale):
         mouse_x, mouse_y = mouse_position
-        mouse_x = min(max(0, mouse_x), SCREEN_WIDTH - 1)
-        mouse_y = min(max(0, mouse_y), SCREEN_HEIGHT - 1)
+        mouse_x = clip(mouse_x, 0, SCREEN_WIDTH - 1)
+        mouse_y = clip(mouse_y, 0, SCREEN_HEIGHT - 1)
         prev_pos_x, prev_pos_y = mouse_x + self.__offset_x, mouse_y + self.__offset_y
         index_x, index_y = prev_pos_x / self.__scale, prev_pos_y / self.__scale
         self.__scale += delta_scale
-        self.__scale = min(max(self.__min_scale, self.__scale), self.__max_scale)
+        self.__scale = clip(self.__scale, 1, 100)
         next_pos_x = index_x * self.__scale + self.__epsilon_x - mouse_x
         next_pos_y = index_y * self.__scale + self.__epsilon_y - mouse_y
         self.__offset_x, self.__epsilon_x = int(next_pos_x), next_pos_x - int(next_pos_x)
         self.__offset_y, self.__epsilon_y = int(next_pos_y), next_pos_y - int(next_pos_y)
-        self.__offset_x = min(max(0, self.__offset_x), self.__size_x * self.__scale - SCREEN_WIDTH)
-        self.__offset_y = min(max(0, self.__offset_y), self.__size_y * self.__scale - SCREEN_HEIGHT)
+        self.__offset_x = clip(self.__offset_x, -SCREEN_WIDTH, self.__size_x * self.__scale)
+        self.__offset_y = clip(self.__offset_y, -SCREEN_HEIGHT, self.__size_y * self.__scale)

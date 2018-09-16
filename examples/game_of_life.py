@@ -16,7 +16,6 @@ class GameOfLife(object):
         world = signal.convolve2d(self.world, self.kernel, mode='same', boundary='fill')
         self.world[np.logical_and(world == 3, self.world == 0)] = 1
         self.world[np.logical_or(world < 2, world > 3)] = 0
-
         return self.world * 0xffffff, {}
 
 
