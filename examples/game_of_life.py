@@ -3,14 +3,16 @@ from scipy import signal
 
 
 class GameOfLife(object):
-    def __init__(self, width=800, height=800):
+    def __init__(self, width=1024, height=1024):
         self.width = width
         self.height = height
         self.kernel = np.array([[1, 1, 1], [1, 0, 1], [1, 1, 1]], dtype=int)
 
     def reset(self):
         self.world = np.zeros((self.width, self.height), dtype=int)
-        self.world[60:741, 400] = self.world[400, 60:741] = 1
+        s, t = self.width // 15, self.height // 15
+        self.world[s:self.width - s + 1, self.width // 2] = 1
+        self.world[self.height // 2, t: self.height - t + 1] = 1
 
     def step(self):
         world = signal.convolve2d(self.world, self.kernel, mode='same', boundary='fill')

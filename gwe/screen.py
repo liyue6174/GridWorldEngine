@@ -4,13 +4,13 @@ import numpy
 
 
 class Screen(pygame.Surface):
-    def __init__(self):
+    def __init__(self, game_width=SCREEN_WIDTH, game_height=SCREEN_HEIGHT):
         super().__init__((SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.__offset_x = (game_width - SCREEN_WIDTH) // 2
+        self.__offset_y = (game_height - SCREEN_HEIGHT) // 2
         self.__scale = 1
         self.__size_x = 0
         self.__size_y = 0
-        self.__offset_x = 0
-        self.__offset_y = 0
         self.__epsilon_x = 0
         self.__epsilon_y = 0
 
