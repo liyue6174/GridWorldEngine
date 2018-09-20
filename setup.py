@@ -14,7 +14,7 @@ setup(
     author="liyue",
     url="https://github.com/liyue6174/GridWorldEngine.git",
     packages=find_packages(),
-    package_data={"gwe": ["gwe/font/*.*"]},
+    package_data={"gwe": ["font/*.*"]},
     install_requires=[
         "pygame==1.9.4",
         "numpy==1.15.1",

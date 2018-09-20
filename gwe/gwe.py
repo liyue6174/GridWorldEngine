@@ -34,6 +34,7 @@ class GridWorldEngine(object):
         state, info = self.sim_obj.step()
         self.display(state, info)
         self.frame += 1
+        return info
 
     def display(self, state, info):
         if self.window is None:
