@@ -68,3 +68,12 @@ class Screen(pygame.Surface):
         self.__offset_y, self.__epsilon_y = int(next_pos_y), next_pos_y - int(next_pos_y)
         self.__offset_x = clip(self.__offset_x, -SCREEN_WIDTH, self.__size_x * self.__scale)
         self.__offset_y = clip(self.__offset_y, -SCREEN_HEIGHT, self.__size_y * self.__scale)
+
+    def get_index_by_position(self, mouse_position):
+        mouse_x, mouse_y = mouse_position
+        index_x = (mouse_x + self.__offset_x) // self.__scale
+        index_y = (mouse_y + self.__offset_y) // self.__scale
+        if mouse_x >= SCREEN_WIDTH: return -1, -1
+        if index_x < 0 or index_x >= self.__size_x: return -1, -1
+        if index_y < 0 or index_y >= self.__size_y: return -1, -1
+        return index_x, index_y
